@@ -4,8 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>APK Inspector</title>
+  
+  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Monetag SDK -->
+  <script src="//libtl.com/sdk.js" data-zone="12113284" data-sdk="show_12113284"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 font-sans">
 
@@ -35,7 +42,7 @@
 
     <!-- Results Section -->
     <div id="results" class="hidden space-y-4 mt-6">
-      <!-- Overview Card -->
+      <!-- Basic Overview Card -->
       <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
         <h2 id="res-app-name" class="text-lg font-bold text-white"></h2>
         <p id="res-pkg-name" class="text-xs text-slate-400 break-all"></p>
@@ -51,26 +58,24 @@
         </div>
       </div>
 
-      <!-- Monetag Lock / Trigger Banner -->
+      <!-- Monetag Rewarded Ad Lock Card -->
       <div id="monetag-gate" class="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/40 p-4 rounded-xl text-center">
         <p class="text-sm font-medium text-amber-200 mb-2">Detailed Security & 100+ Properties Locked</p>
-        <p class="text-xs text-slate-300 mb-3">Watch a short sponsor ad to view full permissions, exported components & signature fingerprints.</p>
-        <button onclick="triggerAdAndUnlock()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded-xl text-sm transition">
+        <p class="text-xs text-slate-300 mb-3">Watch a short sponsor ad to view full permissions, signatures & architectures.</p>
+        <button id="ad-btn" onclick="triggerAdAndUnlock()" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold py-2 rounded-xl text-sm transition">
           Watch Ad to Unlock Full Report
         </button>
       </div>
 
       <!-- Full Inspection Report (Unlocked after Ad) -->
       <div id="full-details" class="hidden space-y-4">
-        <!-- Signatures & Architecture -->
         <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-xs">
           <h3 class="font-bold text-sky-400 mb-2">Build & Signing Details</h3>
-          <p>Total Files: <span id="res-total-files" class="font-semibold text-white"></span></p>
-          <p>DEX Files: <span id="res-dex" class="font-semibold text-white"></span></p>
-          <p>Native Architectures: <span id="res-native" class="font-semibold text-white"></span></p>
+          <p class="py-1">Total Files: <span id="res-total-files" class="font-semibold text-white"></span></p>
+          <p class="py-1">DEX Files: <span id="res-dex" class="font-semibold text-white"></span></p>
+          <p class="py-1">Native Architectures: <span id="res-native" class="font-semibold text-white"></span></p>
         </div>
 
-        <!-- Permissions List -->
         <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 text-xs">
           <h3 class="font-bold text-sky-400 mb-2">Permissions (<span id="res-perm-count"></span>)</h3>
           <div id="res-permissions" class="max-h-48 overflow-y-auto space-y-1 font-mono text-slate-300"></div>
@@ -112,9 +117,11 @@
           renderOverview(result.data);
         } else {
           alert("Analysis failed: " + (result.message || "Unknown error"));
+          document.getElementById('analyze-btn').classList.remove('hidden');
         }
       } catch (err) {
-        alert("Upload error. Try a smaller APK file.");
+        alert("Upload error. Try with a smaller APK file.");
+        document.getElementById('analyze-btn').classList.remove('hidden');
       } finally {
         document.getElementById('loading').classList.add('hidden');
       }
@@ -130,10 +137,25 @@
       document.getElementById('res-sdk').innerText = `${data.min_sdk || 'N/A'} / ${data.target_sdk || 'N/A'}`;
     }
 
+    // Monetag Rewarded Interstitial Trigger
     function triggerAdAndUnlock() {
-      // Monetag സ്ക്രിപ്റ്റ് ചേർത്ത ശേഷം Ad ഇവിടെ പ്ലേ ചെയ്യാം.
-      // തൽക്കാലം നേരിട്ട് അൺലോക്ക് ചെയ്യുന്നു:
-      unlockReport();
+      const adBtn = document.getElementById('ad-btn');
+      adBtn.innerText = "Loading Ad...";
+      adBtn.disabled = true;
+
+      if (typeof show_12113284 === 'function') {
+        show_12113284().then(() => {
+          // പരസ്യം പൂർണ്ണമായി കണ്ടുകഴിഞ്ഞാൽ റിപ്പോർട്ട് അൺലോക്ക് ചെയ്യുന്നു
+          unlockReport();
+        }).catch((err) => {
+          console.error("Ad error or dismissed:", err);
+          // പരസ്യം ലോഡ് ആയില്ലെങ്കിലും യൂസർ എക്സ്പീരിയൻസ് തടസ്സപ്പെടാതിരിക്കാൻ അൺലോക്ക് ചെയ്യുന്നു
+          unlockReport();
+        });
+      } else {
+        // SDK ലഭ്യമായില്ലെങ്കിൽ നേരിട്ട് അൺലോക്ക് ചെയ്യുന്നു
+        unlockReport();
+      }
     }
 
     function unlockReport() {
@@ -147,9 +169,10 @@
       const permList = document.getElementById('res-permissions');
       permList.innerHTML = "";
       document.getElementById('res-perm-count').innerText = fullReportData.permissions.length;
+      
       fullReportData.permissions.forEach(p => {
         const item = document.createElement('div');
-        item.className = "p-1 bg-slate-900 rounded break-all";
+        item.className = "p-1.5 bg-slate-900 rounded break-all border border-slate-700/50";
         item.innerText = p;
         permList.appendChild(item);
       });
@@ -157,4 +180,3 @@
   </script>
 </body>
 </html>
-
