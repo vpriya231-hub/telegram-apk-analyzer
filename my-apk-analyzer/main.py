@@ -3,7 +3,8 @@ import shutil
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from androguard.core.bytecodes.apk import APK
+from androguard.core.apk import APK
+
 
 app = FastAPI()
 
